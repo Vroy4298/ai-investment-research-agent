@@ -1,0 +1,18 @@
+{
+  "name": "ai-investment-agent",
+  "version": "1.0.0",
+  "description": "AI-powered investment research agent using LangGraph, LangChain, and Google Gemini",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names \"SERVER,CLIENT\" --prefix-colors \"cyan,magenta\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "build": "npm run build --prefix client",
+    "install:all": "npm install && npm install --legacy-peer-deps --prefix server && npm install --prefix client",
+    "start": "npm run start --prefix server",
+    "zip": "powershell -ExecutionPolicy Bypass -File ./zip.ps1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
