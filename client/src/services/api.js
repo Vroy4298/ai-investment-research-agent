@@ -18,9 +18,11 @@
  * @param {string} companyName - The name of the company to analyze
  * @returns {Promise<Object>} - The formatted JSON payload from the backend
  */
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 export async function analyzeCompany(companyName) {
   try {
-    const response = await fetch('/api/research', {
+    const response = await fetch(`${API_BASE}/api/research`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

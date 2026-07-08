@@ -13,6 +13,10 @@ An autonomous, multi-agent investment research system that takes a company name,
 1. [Overview](#1-overview)
 2. [How to Run It](#2-how-to-run-it)
 3. [How It Works](#3-how-it-works)
+   - [Architecture](#architecture)
+   - [LangChain.js & LangGraph.js](#core-libraries-langchainjs--langgraphjs)
+   - [The AI Agent Loop (ReAct Pattern)](#the-ai-agent-loop-react-pattern)
+   - [Tech Stack](#tech-stack)
 4. [Key Decisions & Trade-offs](#4-key-decisions--trade-offs)
 5. [Example Runs](#5-example-runs)
 6. [What I Would Improve With More Time](#6-what-i-would-improve-with-more-time)
@@ -179,6 +183,80 @@ Express Server (Node.js)
     research.service.js formats result + metadata
                     │
     res.json(200) → Browser renders two-panel result
+```
+
+### Core Libraries: LangChain.js & LangGraph.js
+
+#### What is LangChain.js?
+
+**LangChain.js** is the JavaScript SDK for building LLM-powered applications. It provides:
+- **Model abstractions** — a unified interface to call any LLM (OpenAI, Gemini, Groq, Anthropic) using the same code, so switching providers means changing one config file, not the whole codebase
+- **Tool binding** — `.bindTools([...])` lets you attach external functions (like Tavily web search) to an LLM so the model can decide when to call them
+- **Structured output** — `.withStructuredOutput(zodSchema)` forces the LLM to return a typed JSON object matching a Zod schema
+- **Message types** — `HumanMessage`, `AIMessage`, `ToolMessage`, `SystemMessage` form the conversation history that flows through the agent loop
+
+**How it is used in this project:**
+
+| Package | Usage |
+|---|---|
+| `@langchain/openai` | `ChatOpenAI` pointed at Groq's OpenAI-compatible endpoint |
+| `@langchain/tavily` | `TavilySearchResults` tool — calls the Tavily Search API |
+| `@langchain/core` | `MessagesAnnotation`, `ToolNode`, `HumanMessage`, `SystemMessage` |
+| `@langchain/langgraph` | `StateGraph`, `END`, `ToolNode` — the full graph runtime |
+
+```js
+// server/agents/investmentAnalyst.js
+import { ChatOpenAI } from '@langchain/openai';
+
+const model = new ChatOpenAI({
+  model: 'llama-3.3-70b-versatile',
+  openAIApiKey: process.env.GROQ_API_KEY,
+  configuration: { baseURL: 'https://api.groq.com/openai/v1' }
+});
+
+// Bind Tavily search so the model can call it when it needs live data
+export const modelWithTools = model.bindTools(tools);
+
+// Separate instance — forces structured JSON output for the decision phase
+export const structuredModel = model.withStructuredOutput(InvestmentDecision, {
+  method: 'jsonMode'  // Groq doesn't support json_schema — jsonMode is the workaround
+});
+```
+
+---
+
+#### What is LangGraph.js?
+
+**LangGraph.js** is a framework built on top of LangChain for building **stateful, multi-step AI workflows**. It models an AI pipeline as a **directed graph** where:
+
+- **Nodes** = processing steps (an LLM call, a tool execution, a transformation)
+- **Edges** = flow between steps — can be **conditional** (e.g. "if the agent called a tool, run tools; otherwise go to makeDecision")
+- **State** = a typed object that flows through every node and accumulates the full conversation history
+
+**Why LangGraph instead of a plain LLM call?**
+
+A plain LLM call is a single request → response. LangGraph enables **loops** — the agent can search, read results, decide it needs more information, search again, and repeat until it is confident. This is the **ReAct (Reasoning + Acting)** pattern that makes the agent genuinely adaptive rather than scripted.
+
+```js
+// server/graph/researchGraph.js
+import { StateGraph, MessagesAnnotation, ToolNode, END } from '@langchain/langgraph';
+
+const graph = new StateGraph(MessagesAnnotation)
+  .addNode('researcher', researcherNode)     // LLM with tools — decides what to search
+  .addNode('tools', new ToolNode(tools))     // Executes Tavily searches automatically
+  .addNode('makeDecision', decisionNode)     // LLM in jsonMode — outputs INVEST/PASS
+  .addEdge('__start__', 'researcher')
+  .addConditionalEdges('researcher', shouldContinue)  // The ReAct loop logic
+  .addEdge('tools', 'researcher')            // Feed search results back to researcher
+  .addEdge('makeDecision', END)
+  .compile();
+
+// The conditional edge — heart of the ReAct loop
+function shouldContinue(state) {
+  const lastMessage = state.messages.at(-1);
+  if (lastMessage.tool_calls?.length > 0) return 'tools';  // still researching
+  return 'makeDecision';                                    // done, make decision
+}
 ```
 
 ### The AI Agent Loop (ReAct Pattern)
