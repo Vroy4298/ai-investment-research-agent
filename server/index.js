@@ -44,10 +44,24 @@ const app = express();
 app.use(helmet());
 
 // Configure Cross-Origin Resource Sharing
-// Only the client URL (from .env) is whitelisted
+// Supports comma-separated CLIENT_URL for multiple origins (e.g. prod + preview)
+// Also allows any *.vercel.app subdomain for Vercel preview deployments
+const allowedOrigins = config.clientUrl
+  .split(',')
+  .map((u) => u.trim().replace(/\/$/, '')); // strip trailing slashes
+
 app.use(
   cors({
-    origin: config.clientUrl,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (curl, Postman, server-to-server)
+      if (!origin) return callback(null, true);
+      const clean = origin.replace(/\/$/, '');
+      const allowed =
+        allowedOrigins.includes(clean) ||
+        /^https:\/\/.*\.vercel\.app$/.test(clean);
+      if (allowed) return callback(null, true);
+      callback(new Error(`CORS: origin '${origin}' not allowed`));
+    },
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type'],
   })
