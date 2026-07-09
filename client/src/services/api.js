@@ -1,23 +1,4 @@
-/**
- * services/api.js
- * 
- * Frontend API Service Layer.
- * 
- * Responsibility:
- *   - Send research requests to the Express backend
- *   - Parse the response and format exceptions gracefully
- * 
- * Why this is separate:
- *   - Decouples HTTP request plumbing from React state components
- *   - Simplifies mocking/testing of API responses
- */
 
-/**
- * Sends a POST request to analyze a company by name.
- * 
- * @param {string} companyName - The name of the company to analyze
- * @returns {Promise<Object>} - The formatted JSON payload from the backend
- */
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export async function analyzeCompany(companyName) {
