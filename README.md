@@ -1,10 +1,10 @@
 # SIGNAL — AI Investment Research Agent
 
-> **InsideIIM × Altuni AI Labs · Take-Home Assignment**
+
 
 An autonomous, multi-agent investment research system that takes a company name, conducts real-time web research across five analytical dimensions, and delivers a structured **INVEST** or **PASS** verdict — with supporting evidence, financial highlights, and detailed reasoning.
 
-**Live Demo:** `[Add Vercel URL here after deployment]`
+**Live Demo: https://ai-investment-research-agent-gules.vercel.app/
 
 ---
 
